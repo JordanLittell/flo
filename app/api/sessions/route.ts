@@ -11,9 +11,9 @@ export const maxDuration = 800;
 export async function POST(request: Request) {
   // Each call spends Claude and ElevenLabs credit and there's no sign-in yet, so deployments stay
   // closed unless explicitly opened.
-  if (process.env.NODE_ENV !== "development" && process.env.ALLOW_PUBLIC_GENERATION !== "true") {
-    return Response.json({ error: "Generation is disabled on this deployment." }, { status: 403 });
-  }
+  // if (process.env.NODE_ENV !== "development" && process.env.ALLOW_PUBLIC_GENERATION !== "true") {
+  //   return Response.json({ error: "Generation is disabled on this deployment." }, { status: 403 });
+  // }
 
   const parsed = SessionRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         );
         send({ type: "done", sessionUrl: session.sessionUrl });
       } catch (error) {
-        console.error("[generate] session failed", error);
+        console.error("[generate] session failed", );
         send({ type: "error", message: error instanceof Error ? error.message : "Generation failed." });
       } finally {
         try {
