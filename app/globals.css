@@ -1,26 +1,120 @@
-@import "tailwindcss";
+/* YoFlow design tokens, transcribed from the design system's tokens.json.
+   Daylight (light) is the first theme; Evening (dark) follows the device setting. */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --ground: #eef0ec;
+  --surface: #fafaf7;
+  --surface-sunk: #e3e6e0;
+  --line: #c9cec5;
+  --line-strong: #858a83;
+  --ink: #211b27;
+  --ink-muted: #57535e;
+  --saffron: #e8a13a;
+  --on-saffron: #211b27;
+  --saffron-text: #82520a;
+  --saffron-soft: #f7e4c3;
+  --alert: #a8321f;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Vibes are the same in both themes. */
+  --vibe-tide: #0f3f3d;
+  --on-vibe-tide: #cdede6;
+  --vibe-haze: #36334d;
+  --on-vibe-haze: #e6e2f4;
+  --vibe-sunrise: #f4a47c;
+  --on-vibe-sunrise: #3a1608;
+  --vibe-moss: #2c3a22;
+  --on-vibe-moss: #dce8cc;
+
+  --font-display: var(--font-bricolage), "Avenir Next", system-ui, sans-serif;
+  --font-body: var(--font-figtree), "Avenir Next", system-ui, sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 32px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px #211b2712, 0 2px 6px #211b270f;
+  --shadow-lg: 0 8px 24px -6px #211b2729;
+  --focus-ring: 0 0 0 2px #eef0ec, 0 0 0 4px #211b27;
+
+  color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ground: #15131a;
+    --surface: #1f1c25;
+    --surface-sunk: #100e14;
+    --line: #3a3543;
+    --line-strong: #7a7486;
+    --ink: #f1eef2;
+    --ink-muted: #aaa5b1;
+    --saffron: #f0b254;
+    --on-saffron: #211b27;
+    --saffron-text: #f0b254;
+    --saffron-soft: #3a2b15;
+    --alert: #f2907f;
+
+    --shadow-sm: 0 1px 2px #00000080;
+    --shadow-lg: 0 12px 32px -8px #000000b3;
+    --focus-ring: 0 0 0 2px #15131a, 0 0 0 4px #f1eef2;
   }
 }
 
+/* Vibe scoping: set data-vibe on a container, then use var(--vibe) / var(--on-vibe) inside it. */
+[data-vibe="tide"] { --vibe: var(--vibe-tide); --on-vibe: var(--on-vibe-tide); }
+[data-vibe="haze"] { --vibe: var(--vibe-haze); --on-vibe: var(--on-vibe-haze); }
+[data-vibe="sunrise"] { --vibe: var(--vibe-sunrise); --on-vibe: var(--on-vibe-sunrise); }
+[data-vibe="moss"] { --vibe: var(--vibe-moss); --on-vibe: var(--on-vibe-moss); }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

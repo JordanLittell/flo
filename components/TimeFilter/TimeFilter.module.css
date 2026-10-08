@@ -1,0 +1,48 @@
+/* One row always; on narrow screens the rail scrolls sideways instead of wrapping. */
+.time {
+  display: inline-flex;
+  max-width: 100%;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-sunk);
+  border-radius: calc(var(--radius-sm) + 4px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.time::-webkit-scrollbar {
+  display: none;
+}
+
+.option {
+  flex: none;
+  white-space: nowrap;
+  height: 40px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-muted);
+  font: 600 15px/20px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.option:hover {
+  color: var(--ink);
+}
+
+.option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.on {
+  background: var(--saffron);
+  color: var(--on-saffron);
+}
+
+.on:hover {
+  color: var(--on-saffron);
+}

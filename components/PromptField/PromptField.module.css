@@ -1,0 +1,82 @@
+.prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+}
+
+.prompt:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: 400 16px/24px var(--font-body);
+  color: var(--ink);
+}
+
+.box input::placeholder {
+  color: var(--ink-muted);
+}
+
+.box input {
+  text-overflow: ellipsis;
+}
+
+.go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 44px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  font: 600 15px/20px var(--font-body);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.go:hover {
+  background: var(--ground);
+}
+
+.go:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.go:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* On phones the button keeps only its arrow so the prompt has room; the label stays as aria-label. */
+@media (max-width: 479px) {
+  .go {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .goLabel {
+    display: none;
+  }
+}

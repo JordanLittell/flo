@@ -1,0 +1,66 @@
+.page {
+  display: grid;
+  gap: var(--space-8);
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  /* Top padding clears the pinned wordmark on phones, where the prompt box spans the full width. */
+  padding: calc(var(--space-12) + var(--space-6)) var(--space-4) var(--space-12);
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: var(--space-12) var(--space-8);
+  }
+}
+
+/* Pinned to the page's top-right corner, outside the content column. */
+.wordmark {
+  position: absolute;
+  top: var(--space-6);
+  right: var(--space-4);
+  font: 600 20px/24px var(--font-display);
+}
+
+@media (min-width: 720px) {
+  .wordmark {
+    left: var(--space-8);
+  }
+}
+
+.controls {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+}
+
+.controls > form {
+  width: 100%;
+  max-width: 640px;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.heading {
+  font: 600 20px/24px var(--font-display);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+.empty {
+  font: 400 16px/24px var(--font-body);
+  color: var(--ink-muted);
+}
