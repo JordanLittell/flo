@@ -41,7 +41,15 @@ export function estimateSeconds(transcript: Transcript): number {
   );
 }
 
-export async function generateTranscript(input: TranscriptInput, client = new Anthropic()): Promise<Transcript> {
+/** Rough size of a transcript's JSON per class minute, to turn streamed characters into a progress fraction. */
+const CHARACTERS_PER_MINUTE = 1150;
+
+export async function generateTranscript(
+  input: TranscriptInput,
+  /** Called as the script streams in, with a 0–1 estimate of how much is written. */
+  onProgress?: (fraction: number) => void,
+  client = new Anthropic(),
+): Promise<Transcript> {
   // Streaming keeps a long class (large max_tokens) clear of HTTP timeouts.
   // fallbacks: "default" re-runs a safety refusal on Anthropic's recommended fallback model.
   console.log("generating transcript", input);
@@ -54,6 +62,14 @@ export async function generateTranscript(input: TranscriptInput, client = new An
     system: [{ type: "text", text: TRANSCRIPT_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: transcriptUserMessage(input) }],
   });
+  if (onProgress) {
+    const expected = Math.max(input.minutes, 5) * CHARACTERS_PER_MINUTE;
+    let written = 0;
+    stream.on("text", (delta) => {
+      written += delta.length;
+      onProgress(Math.min(written / expected, 0.95));
+    });
+  }
   const message = await stream.finalMessage();
 
   if (message.stop_reason === "refusal") {

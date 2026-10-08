@@ -8,7 +8,7 @@ import { generateTranscript, type Transcript, type TranscriptInput } from "./tra
 
 /** Step ids match the PrepareLoader's steps in the design system. */
 export type StepEvent =
-  | { step: "script"; status: "active" | "done" }
+  | { step: "script"; status: "active" | "done"; progress?: number }
   | { step: "voice"; status: "active" | "done"; done?: number; total?: number }
   | { step: "music"; status: "active" | "done" }
   | { step: "finish"; status: "active" | "done" };
@@ -94,7 +94,7 @@ export async function generateSession(
   music?: MusicOptions,
 ): Promise<VoicedSession> {
   onStep?.({ step: "script", status: "active" });
-  const transcript = await generateTranscript(input);
+  const transcript = await generateTranscript(input, (progress) => onStep?.({ step: "script", status: "active", progress }));
   onStep?.({ step: "script", status: "done" });
   return voiceTranscript(transcript, options, onStep, music);
 }

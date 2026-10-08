@@ -66,6 +66,7 @@ let progressLineOpen = false;
 
 /** Prints pipeline steps with the same labels the PrepareLoader uses. */
 export function logStep(event: StepEvent) {
+  if (event.step === "script" && event.progress !== undefined) return;
   if (event.step === "voice" && event.status === "active" && event.total) {
     process.stdout.write(`\r${LABELS.voice}… ${event.done}/${event.total} segments`);
     progressLineOpen = event.done !== event.total;

@@ -39,6 +39,20 @@
   max-width: 640px;
 }
 
+.selects {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 640px;
+}
+
+@media (min-width: 480px) {
+  .selects {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .section {
   display: grid;
   gap: var(--space-4);
