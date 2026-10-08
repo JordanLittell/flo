@@ -6,12 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "voices": "tsx --env-file=.env scripts/voices.ts",
+    "gen:transcript": "tsx --env-file=.env scripts/gen-transcript.ts",
+    "gen:speech": "tsx --env-file=.env scripts/gen-speech.ts",
+    "gen:session": "tsx --env-file=.env scripts/gen-session.ts",
+    "gen:music": "tsx --env-file=.env scripts/gen-music.ts",
+    "gen:vibe-samples": "tsx --env-file=.env scripts/gen-vibe-samples.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@breezystack/lamejs": "^1.2.7",
+    "@elevenlabs/elevenlabs-js": "^2.71.0",
+    "@vercel/blob": "^2.8.1",
     "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -19,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
