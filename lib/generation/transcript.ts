@@ -1,12 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import type { BetaRawMessageStreamEvent } from "@anthropic-ai/sdk/resources/beta/messages";
 import { z } from "zod";
 import { TRANSCRIPT_SYSTEM_PROMPT, transcriptUserMessage } from "./transcript-prompt";
 
 export const TRANSCRIPT_MODEL = "claude-opus-5-5";
-
-/** Speaking rate the prompt plans against; used for estimates before audio exists. */
-export const WORDS_PER_SECOND = 2.3;
 
 export const SegmentSchema = z.object({
   pose: z.string().nullable(),
@@ -26,6 +23,12 @@ export const TranscriptSchema = z.object({
 export type Segment = z.infer<typeof SegmentSchema>;
 export type Transcript = z.infer<typeof TranscriptSchema>;
 
+/** One line of the model's JSON Lines output: a header first, then one line per segment. */
+const TranscriptLineSchema = z.discriminatedUnion("type", [
+  TranscriptSchema.omit({ segments: true }).extend({ type: z.literal("header") }),
+  SegmentSchema.extend({ type: z.literal("segment"), percentComplete: z.number() }),
+]);
+
 export interface TranscriptInput {
   prompt: string;
   /** Default length; the prompt's own length wins if it names one. */
@@ -33,23 +36,38 @@ export interface TranscriptInput {
   level?: string;
 }
 
-/** Estimated spoken length in seconds, before any audio is generated. */
-export function estimateSeconds(transcript: Transcript): number {
-  return transcript.segments.reduce(
-    (total, segment) => total + segment.text.split(/\s+/).filter(Boolean).length / WORDS_PER_SECOND + segment.pauseAfterSeconds,
-    0,
-  );
+type ProgressEvent = {
+  type: "step";
+  step: "script";
+  status: "active";
+  progress: number;
+};
+
+type ContentEvent = {
+  type: "content";
+  content: z.infer<typeof TranscriptLineSchema>;
+};
+
+export type TranscriptGenerationEvent = ProgressEvent | ContentEvent;
+
+/** Yields each complete line of streamed text, and whatever is left once the stream ends. */
+async function* lines(stream: AsyncIterable<BetaRawMessageStreamEvent>): AsyncGenerator<string, void, undefined> {
+  let buffer = "";
+  for await (const chunk of stream) {
+    if (chunk.type !== "content_block_delta" || chunk.delta.type !== "text_delta") continue;
+    buffer += chunk.delta.text;
+    const parts = buffer.split("\n");
+    buffer = parts.pop() ?? "";
+    yield* parts;
+  }
+  if (buffer) yield buffer;
 }
 
-/** Rough size of a transcript's JSON per class minute, to turn streamed characters into a progress fraction. */
-const CHARACTERS_PER_MINUTE = 1150;
-
-export async function generateTranscript(
+/** Streams the script as JSON Lines, yielding the model's own percentComplete as a 0–1 fraction, and returns the transcript. */
+export async function* generateTranscript(
   input: TranscriptInput,
-  /** Called as the script streams in, with a 0–1 estimate of how much is written. */
-  onProgress?: (fraction: number) => void,
   client = new Anthropic(),
-): Promise<Transcript> {
+): AsyncGenerator<TranscriptGenerationEvent, void, undefined> {
   // Streaming keeps a long class (large max_tokens) clear of HTTP timeouts.
   // fallbacks: "default" re-runs a safety refusal on Anthropic's recommended fallback model.
   console.log("generating transcript", input);
@@ -58,18 +76,45 @@ export async function generateTranscript(
     max_tokens: 64000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "high", format: betaZodOutputFormat(TranscriptSchema) },
+    output_config: { effort: "high" },
     system: [{ type: "text", text: TRANSCRIPT_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: transcriptUserMessage(input) }],
   });
-  if (onProgress) {
-    const expected = Math.max(input.minutes, 5) * CHARACTERS_PER_MINUTE;
-    let written = 0;
-    stream.on("text", (delta) => {
-      written += delta.length;
-      onProgress(Math.min(written / expected, 0.95));
-    });
+  
+  yield { type: "step", step: "script", status: "active", progress: 0 };
+
+  let header: Omit<Transcript, "segments"> | undefined;
+  let lineNumber = 0;
+  let reported = 0;
+
+  for await (const line of lines(stream)) {
+    lineNumber++;
+    const trimmed = line.trim();
+    // Tolerate blank lines and a stray code fence around the output.
+    if (!trimmed || trimmed.startsWith("```")) continue;
+    let parsed: z.infer<typeof TranscriptLineSchema>;
+    try {
+      parsed = TranscriptLineSchema.parse(JSON.parse(trimmed));
+    } catch (error) {
+      throw new Error(`Transcript line ${lineNumber} was not valid: ${error instanceof Error ? error.message : error}`);
+    }
+    // Parsing with the stored schemas strips the line-only fields (type, percentComplete).
+    if (parsed.type === "header") {
+      header = TranscriptSchema.omit({ segments: true }).parse(parsed);
+      yield { type: "content", content: parsed };
+      continue;
+    } else {
+      // content type must be segment
+      yield { type: "content", content: { ...parsed, type: "segment", percentComplete: parsed.percentComplete } };
+    }
+    
+    const progress = Math.min(Math.max(parsed.percentComplete / 100, reported), 0.95);
+    if (progress > reported) {
+      reported = progress;
+      yield { type: "step", step: "script", status: "active", progress };
+    }
   }
+
   const message = await stream.finalMessage();
 
   if (message.stop_reason === "refusal") {
@@ -78,17 +123,4 @@ export async function generateTranscript(
   if (message.stop_reason === "max_tokens") {
     throw new Error("Transcript was cut off at max_tokens.");
   }
-
-  const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
-  const transcript = TranscriptSchema.parse(JSON.parse(text));
-  const segments = transcript.segments.map((segment) => ({
-    ...segment,
-    pauseAfterSeconds: Math.min(Math.max(segment.pauseAfterSeconds, 0), 20),
-  }));
-  console.log("segments", segments);
-  return {
-    ...transcript,
-    // Guard against out-of-range silences regardless of what the model returned.
-    segments,
-  };
 }

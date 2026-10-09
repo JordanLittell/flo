@@ -12,8 +12,8 @@ type Statuses = Record<LoaderStepId, LoaderStepStatus>;
 const INITIAL: Statuses = { script: "active", voice: "pending", music: "pending", finish: "pending" };
 
 /**
- * Overall progress from real events: the script is the first 35%, voicing the next 50% (music runs
- * alongside it), and storing the files the last 15%.
+ * Overall progress from real events: the script is the first 50%, voicing the next 45% (music runs
+ * alongside it), and storing the files the last 5%.
  */
 function overall(statuses: Statuses, scriptFraction: number, voiceFraction: number): number {
   if (statuses.finish === "done") return 100;
@@ -51,20 +51,6 @@ export default function GenerateScreen({ request, onBack }: GenerateScreenProps)
     if (startedFor.current === request) return;
     startedFor.current = request;
 
-    function apply(event: GenerationEvent) {
-      if (event.type === "error") {
-        setError(event.message);
-        return;
-      }
-      if (event.type === "done") {
-        if (mounted.current) router.push(`/class?session=${encodeURIComponent(event.sessionUrl)}`);
-        return;
-      }
-      setStatuses((current) => ({ ...current, [event.step]: event.status }));
-      if (event.step === "script" && event.progress !== undefined) setScriptFraction(event.progress);
-      if (event.step === "voice" && event.total) setVoiceFraction((event.done ?? 0) / event.total);
-    }
-
     async function run() {
       const response = await fetch("/api/sessions", {
         method: "POST",
@@ -80,6 +66,8 @@ export default function GenerateScreen({ request, onBack }: GenerateScreenProps)
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       let buffer = "";
       let finished = false;
+      let errorMessage = "";
+      let lastevent: GenerationEvent | null = null;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -88,11 +76,30 @@ export default function GenerateScreen({ request, onBack }: GenerateScreenProps)
         buffer = lines.pop() ?? "";
         for (const line of lines.filter(Boolean)) {
           const event = JSON.parse(line) as GenerationEvent;
-          if (event.type !== "step") finished = true;
-          apply(event);
+          lastevent = event;
+          switch (event.type) {
+            case "step":
+              setStatuses((current) => ({ ...current, [event.step]: event.status }));
+              if (event.step === "script") setScriptFraction(event.progress);
+              if (event.step === "voice" && event.total) setVoiceFraction((event.done ?? 0) / event.total);
+              break;
+            case "error":
+              errorMessage = event.message;
+              setError(event.message);
+              finished = true;
+              break;
+            case "done":
+              finished = true;
+              if (mounted.current) router.push(`/class/${event.sessionId}`);
+              break;
+          }
         }
       }
-      if (!finished) throw new Error("The connection closed before your class was ready.");
+      if (!finished) {
+        setError(errorMessage || "The connection closed before your class was ready. Please try again.");
+        console.error("[generate] error:", errorMessage, lastevent);
+        return;
+      }
     }
 
     run().catch((cause: unknown) => {

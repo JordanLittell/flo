@@ -11,19 +11,13 @@ export const VIBE_MUSIC: Record<Vibe, string> = {
 const SHARED =
   "Instrumental background music for a guided yoga class. It sits quietly under a speaking voice, so keep the midrange uncluttered and the dynamics even. Steady and calm throughout: no drops, no build-ups, no sudden changes, no vocals.";
 
-export type MusicUse = "loop" | "sample";
-
-/** Builds the composition prompt for a vibe; `detail` is a finer style choice such as "tropical". */
-export function musicPrompt(vibe: Vibe, use: MusicUse, detail?: string): string {
-  const shape =
-    use === "loop"
-      ? "Begin with a soft fade in and end with a soft fade out so the piece loops smoothly."
-      : "A short preview that captures the feel right away.";
+/** Builds the composition prompt for a session loop; `detail` is a finer style choice such as "tropical". */
+export function musicPrompt(vibe: Vibe, detail?: string): string {
   return [
     `${VIBES[vibe]} mood: ${VIBE_MUSIC[vibe]}.`,
     detail ? `Style detail: ${detail}.` : null,
     SHARED,
-    shape,
+    "Begin with a soft fade in and end with a soft fade out so the piece loops smoothly.",
   ]
     .filter(Boolean)
     .join(" ");

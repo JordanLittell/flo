@@ -34,10 +34,31 @@ We will also generate music using ElevenLabs. The music file will be streamed to
 # Infrastructure
 
 ## Hosting
-We will be deploying on Vercel as there is an existing integration with REMIX and it handles connecting github to deployments quickly. We will use supabase as the managed pg database and the native Vercel Object storage since it is simple to set up and is cost-efficient. The Vercel object store will be the media store.
+We will be deploying on Vercel as there is an existing integration with Next.js and it handles connecting github to deployments quickly. We will use supabase as the managed pg database and the native Vercel Object storage since it is simple to set up and is cost-efficient. The Vercel object store will be the media store.
 
 ## Authentication
-We will do oauth for now as it is simple to set up and does not require rolling out a whole authentication system. We should allow for basic username/password sign up using an existing library that uses a hashing function and salt for the password. We don't want to roll our own auth out. We should also include convenient OIDC options as well like sign in with google, since they are easier for the user.
+We will do basic credentials for now as it is simple to set up and does not require rolling out a whole authentication system. We should allow for basic username/password sign up using an existing library that uses a hashing function and salt for the password. We don't want to roll our own auth out. We will use Next-auth for implementing secure registration/signIn. 
+
+Authentication should be enforced by the next.js proxy construct. We should allow access to the registration and sign in pages. Everything else should be protected by auth.
 
 # UI
 We will be following this design system: https://claude.ai/artifact/6ABRNjQeiAh2ffaTPMZqHB
+
+
+# Data Layer
+We will be using our own DAO to provide a nice abstraction over quries. We will also be using supabase migrations for schema management (https://supabase.com/docs/guides/deployment/database-migrations). The core DAOs will be: User, Session, and UserSession.
+
+## User
+- a user of the app with a username/password. Keep minimal for now. We really want this for auth and for notifications pushed to their email (notifications out of scope)
+## Session
+- a generated yoga session with the vibe, instructor, time, and links to content.
+## UserSession
+- a join table to associate users with the sessions they start/stop. Eventually this will be the basis for a history view that allows users to resume where they left off or to repeat a session. It will also be the basis for stats. This is out of scope for v1 though.
+
+# Code Design
+There are 3 high-level directories that are important: app routes, components, and re-usable modules (lib). The `app routes` are coupled to Next.js. They will correspond to API endpoints and server-side rendered React pages (depending on if they have page.tsx). The `components` define the component library that take after our design system. These will be rendered by the pages defined in the app routes.
+
+## Modules (lib)
+The crux of the business logic for Flow is transcript generation and media compilation. That is, a transcript must be generated via an LLM and then converted into 2 media files: one for the instructor voice and one for the music. This necessitates `audio` and `generation` modules. We also need an abstraction layer to interface with data in our application DB `data` and logic for authenticating a user `auth`.
+
+

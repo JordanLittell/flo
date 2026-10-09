@@ -15,10 +15,14 @@ export const SessionRequestSchema = z.object({
 
 export type SessionRequest = z.infer<typeof SessionRequestSchema>;
 
-/** One line of the newline-delimited JSON stream the generation route sends back. */
+/** One line of the newline-delimited JSON stream the generation route sends back. 
+ * We read the stream in the browser and update a loader based on how far we are through the generation. 
+ * Once the generation is complete (we encounter done) we redirect to the session page.
+*/
+
 export type GenerationEvent =
   | ({ type: "step" } & StepEvent)
-  | { type: "done"; sessionUrl: string }
+  | { type: "done"; sessionId: string }
   | { type: "error"; message: string };
 
 /** Default length when the time filter is "Any length". */

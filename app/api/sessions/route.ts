@@ -1,3 +1,4 @@
+import { getCurrentUser } from "@/lib/auth/access";
 import { generateSession } from "@/lib/generation/pipeline";
 import { SessionRequestSchema, type GenerationEvent } from "@/lib/generation/request";
 
@@ -6,14 +7,12 @@ export const maxDuration = 800;
 
 /**
  * Generates a session and streams progress as newline-delimited JSON (one GenerationEvent per line),
- * ending with { type: "done", sessionUrl } or { type: "error", message }.
+ * ending with { type: "done", sessionId } or { type: "error", message }.
  */
 export async function POST(request: Request) {
-  // Each call spends Claude and ElevenLabs credit and there's no sign-in yet, so deployments stay
-  // closed unless explicitly opened.
-  // if (process.env.NODE_ENV !== "development" && process.env.ALLOW_PUBLIC_GENERATION !== "true") {
-  //   return Response.json({ error: "Generation is disabled on this deployment." }, { status: 403 });
-  // }
+  // Each call spends Claude and ElevenLabs credit, so only signed-in users may generate.
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
 
   const parsed = SessionRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -23,6 +22,8 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
+
+    // simple stream implementation that sends JSON-L to the GenerateScreen component
     async start(controller) {
       const send = (event: GenerationEvent) => {
         try {
@@ -31,16 +32,14 @@ export async function POST(request: Request) {
           // The client went away; generation still finishes and the session is stored.
         }
       };
+
+
       try {
-        const session = await generateSession(
-          { prompt, minutes, level },
-          { voiceId },
-          (step) => send({ type: "step", ...step }),
-          { vibe },
-        );
-        send({ type: "done", sessionUrl: session.sessionUrl });
+        for await (const event of generateSession({ prompt, minutes, level }, { voiceId, createdBy: user.id }, { vibe })) {
+          send(event);
+        }
       } catch (error) {
-        console.error("[generate] session failed", );
+        console.error("[generate] session failed", error);
         send({ type: "error", message: error instanceof Error ? error.message : "Generation failed." });
       } finally {
         try {

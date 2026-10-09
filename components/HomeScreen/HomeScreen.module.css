@@ -22,9 +22,21 @@
   font: 600 20px/24px var(--font-display);
 }
 
+/* Opposite corner from the wordmark; vertically centred on it. */
+.signOut {
+  position: absolute;
+  top: calc(var(--space-6) - 10px);
+  left: var(--space-4);
+}
+
 @media (min-width: 720px) {
   .wordmark {
     left: var(--space-8);
+  }
+
+  .signOut {
+    left: auto;
+    right: var(--space-8);
   }
 }
 

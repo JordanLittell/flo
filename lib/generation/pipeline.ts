@@ -1,17 +1,19 @@
 import { randomBytes } from "node:crypto";
 import type { Vibe } from "@/components/vibes";
+import { Session } from "@/lib/data";
 import { pcmToMp3 } from "./audio";
 import { composeMusic, DEFAULT_LOOP_SECONDS } from "./music";
-import { DEFAULT_TTS_MODEL, synthesizeTranscript, type SpeechOptions } from "./speech";
-import { uploadSession, type StoredSession } from "./storage";
-import { generateTranscript, type Transcript, type TranscriptInput } from "./transcript";
+import { createSpeechSynthesizer, DEFAULT_TTS_MODEL, type SpeechOptions } from "./speech";
+import { uploadSession } from "./storage";
+import { generateTranscript, Segment, Transcript, type TranscriptInput } from "./transcript";
+import { GenerationEvent } from "./request";
 
 /** Step ids match the PrepareLoader's steps in the design system. */
 export type StepEvent =
-  | { step: "script"; status: "active" | "done"; progress?: number }
+  | { step: "script"; status: "active" | "done"; progress: number }
   | { step: "voice"; status: "active" | "done"; done?: number; total?: number }
   | { step: "music"; status: "active" | "done" }
-  | { step: "finish"; status: "active" | "done" };
+  | { step: "saving"; status: "active" | "done" };
 
 export interface MusicOptions {
   vibe: Vibe;
@@ -19,14 +21,7 @@ export interface MusicOptions {
   detail?: string;
 }
 
-export interface VoicedSession extends StoredSession {
-  id: string;
-  transcript: Transcript;
-  duration: number;
-  characters: number;
-}
-
-export function sessionId(title: string): string {
+function sessionSlug(title: string): string {
   const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -35,37 +30,65 @@ export function sessionId(title: string): string {
   return `${slug}-${randomBytes(4).toString("hex")}`;
 }
 
-/** Voices an existing transcript, composes its music loop at the same time if asked, and stores both. */
-export async function voiceTranscript(
-  transcript: Transcript,
-  options: SpeechOptions,
-  onStep?: (event: StepEvent) => void,
-  music?: MusicOptions,
-): Promise<VoicedSession> {
+/**
+ * The whole pipeline: music starts straight away, each script segment is voiced as soon as it streams in,
+ * then Blob storage and the session row.
+ */
+export async function *generateSession(
+  input: TranscriptInput,
+  options: SpeechOptions & { createdBy?: string },
+  music: MusicOptions,
+): AsyncGenerator<GenerationEvent, Session, undefined> {
+  yield { type: "step", step: "script", status: "active", progress: 0 };
+
+  // The music loop doesn't depend on the script, so it runs alongside everything else.
+  yield { type: "step", step: "music", status: "active" };
+  const loop = composeMusic({ ...music, seconds: DEFAULT_LOOP_SECONDS }).then(composed => composed.mp3);
+  loop.catch(() => {}); // surfaced by the Promise.all below
+
   const modelId = options.modelId ?? DEFAULT_TTS_MODEL;
+  const voice = createSpeechSynthesizer({ ...options, modelId });
+  let voiceStarted = false;
 
-  const voice = (async () => {
-    onStep?.({ step: "voice", status: "active", done: 0, total: transcript.segments.length });
-    const speech = await synthesizeTranscript(transcript, { ...options, modelId }, (done, total) =>
-      onStep?.({ step: "voice", status: "active", done, total }),
-    );
-    onStep?.({ step: "voice", status: "done" });
-    return speech;
-  })();
+  const segments: Segment[] = [];
+  let header: Omit<Transcript, "segments"> | undefined;
+  for await (const transcriptFragment of generateTranscript(input)) {
+    switch (transcriptFragment.type) {
+      case "step":
+        yield { type: "step", step: "script", status: "active", progress: transcriptFragment.progress };
+        break;
+      case "content":
+        switch (transcriptFragment.content.type) {
+          case "segment": {
+            const { pose, kind, text, pauseAfterSeconds } = transcriptFragment.content;
+            const segment: Segment = { pose, kind, text, pauseAfterSeconds };
+            segments.push(segment);
+            voice.push(segment);
+            if (!voiceStarted) {
+              voiceStarted = true;
+              yield { type: "step", step: "voice", status: "active" };
+            }
+            break;
+          }
+          case "header":
+            header = transcriptFragment.content;
+            break;
+        }
+        break;
+    }
+  }
 
-  const loop = music
-    ? (async () => {
-        onStep?.({ step: "music", status: "active" });
-        const composed = await composeMusic({ ...music, use: "loop", seconds: DEFAULT_LOOP_SECONDS });
-        onStep?.({ step: "music", status: "done" });
-        return composed.mp3;
-      })()
-    : undefined;
+  yield { type: "step", step: "script", status: "done", progress: 100 };
 
-  const [speech, musicMp3] = await Promise.all([voice, loop]);
+  const transcript: Transcript = { ...header, segments } as Transcript;
+  const [speech, musicMp3] = await Promise.all([voice.finish(), loop]);
 
-  onStep?.({ step: "finish", status: "active" });
-  const id = sessionId(transcript.title);
+  yield { type: "step", step: "voice", status: "done" };
+  yield { type: "step", step: "music", status: "done" };
+
+  yield { type: "step", step: "saving", status: "active" };
+  
+  const id = sessionSlug(transcript.title);
   const stored = await uploadSession({
     id,
     mp3: await pcmToMp3(speech.pcm),
@@ -76,25 +99,27 @@ export async function voiceTranscript(
       voiceId: options.voiceId,
       modelId,
       duration: speech.duration,
-      vibe: music?.vibe,
+      vibe: music.vibe,
       transcript,
       timeline: speech.timeline,
     },
   });
-  onStep?.({ step: "finish", status: "done" });
+  const session = await Session.create({
+    slug: id,
+    createdBy: options.createdBy ?? null,
+    prompt: input.prompt,
+    title: transcript.title,
+    minutes: transcript.minutes,
+    level: transcript.level,
+    vibe: music.vibe,
+    voiceId: options.voiceId,
+    audioUrl: stored.musicUrl ?? null,
+    instructorAudioUrl: stored.audioUrl,
+    transcriptUrl: stored.transcriptUrl,
+    manifestUrl: stored.sessionUrl,
+    duration: speech.duration,
+  });
+  yield { type: "done", sessionId: id };
 
-  return { id, transcript, duration: speech.duration, characters: speech.characters, ...stored };
-}
-
-/** The whole pipeline: script, then voice (and music, in parallel), then storage. */
-export async function generateSession(
-  input: TranscriptInput,
-  options: SpeechOptions,
-  onStep?: (event: StepEvent) => void,
-  music?: MusicOptions,
-): Promise<VoicedSession> {
-  onStep?.({ step: "script", status: "active" });
-  const transcript = await generateTranscript(input, (progress) => onStep?.({ step: "script", status: "active", progress }));
-  onStep?.({ step: "script", status: "done" });
-  return voiceTranscript(transcript, options, onStep, music);
+  return session;
 }
