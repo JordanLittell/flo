@@ -43,7 +43,12 @@ export async function *generateSession(
 
   // The music loop doesn't depend on the script, so it runs alongside everything else.
   yield { type: "step", step: "music", status: "active" };
-  const loop = composeMusic({ ...music, seconds: DEFAULT_LOOP_SECONDS }).then(composed => composed.mp3);
+  const loop = composeMusic({ ...music, seconds: DEFAULT_LOOP_SECONDS }).then(composed => {
+    const musicMp3 = composed.mp3;
+    return musicMp3;
+  });
+  
+
   loop.catch(() => {}); // surfaced by the Promise.all below
 
   const modelId = options.modelId ?? DEFAULT_TTS_MODEL;
@@ -55,6 +60,7 @@ export async function *generateSession(
   for await (const transcriptFragment of generateTranscript(input)) {
     switch (transcriptFragment.type) {
       case "step":
+        console.log("[pipeline] step:", transcriptFragment.progress);
         yield { type: "step", step: "script", status: "active", progress: transcriptFragment.progress };
         break;
       case "content":
@@ -119,7 +125,7 @@ export async function *generateSession(
     manifestUrl: stored.sessionUrl,
     duration: speech.duration,
   });
-  yield { type: "done", sessionId: id };
+  yield { type: "done", sessionId: session.id };
 
   return session;
 }
