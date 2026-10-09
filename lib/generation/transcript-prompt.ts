@@ -38,9 +38,7 @@ Write numbers and counts as words ("four", "thirty seconds"). Don't use abbrevia
 Short, concrete and in title case, naming the outcome rather than the style: "Rooted Hips", "Desk Body Reset", "Slow Sunday Unwind".
 
 ## Length and level
-The request gives a default length and level. If the person's own words name a length or level, theirs wins, and you report the length you actually wrote. Levels are Beginner, Intermediate, Advanced or All levels.
-## Max Length
-The class must be no longer than 10 minutes.`; //we cap here to avoid rate limits
+The request gives a default length and level. If the person's own words name a length or level, theirs wins, and you report the length you actually wrote. Levels are Beginner, Intermediate, Advanced or All levels.`
 
 export function transcriptUserMessage(input: { prompt: string; minutes: number; level?: string }) {
   return [

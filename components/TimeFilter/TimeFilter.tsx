@@ -5,21 +5,22 @@ import styles from "./TimeFilter.module.css";
 
 export interface TimeOption {
   value: string;
+  default?: boolean;
   label: string;
 }
 
 export const TIME_OPTIONS: TimeOption[] = [
-  { value: "any", label: "Any length" },
+  { value: "5", label: "5 min", default: true },
   { value: "10", label: "10 min" },
   { value: "20", label: "20 min" },
   { value: "30", label: "30 min" },
-  { value: "45", label: "45+ min" },
+  { value: "45", label: "45 min" },
+  { value: "60", label: "60 min" },
 ];
 
 export interface TimeFilterProps {
   options?: TimeOption[];
   value?: string;
-  defaultValue?: string;
   onChange?: (value: string) => void;
   label?: string;
   className?: string;
@@ -29,12 +30,12 @@ export interface TimeFilterProps {
 export default function TimeFilter({
   options = TIME_OPTIONS,
   value,
-  defaultValue,
   onChange,
   label = "Class length",
   className,
 }: TimeFilterProps) {
-  const [local, setLocal] = useState(defaultValue ?? options[0].value);
+  const defaultValue = options[0].value;
+  const [local, setLocal] = useState(defaultValue);
   const current = value ?? local;
 
   return (

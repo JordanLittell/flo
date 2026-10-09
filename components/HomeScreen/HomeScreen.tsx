@@ -8,7 +8,7 @@ import FlowCard from "../FlowCard/FlowCard";
 import GenerateScreen from "../GenerateScreen/GenerateScreen";
 import PromptField from "../PromptField/PromptField";
 import Select from "../Select/Select";
-import TimeFilter from "../TimeFilter/TimeFilter";
+import TimeFilter, { TIME_OPTIONS } from "../TimeFilter/TimeFilter";
 import VibeSelect from "../VibeSelect/VibeSelect";
 import type { Vibe } from "../vibes";
 import { DEFAULT_MINUTES, type SessionRequest } from "@/lib/generation/request";
@@ -24,7 +24,7 @@ const INSTRUCTOR_OPTIONS = INSTRUCTORS.map((instructor) => ({
 
 export default function HomeScreen({ sessions }: { sessions: SessionData[] }) {
   const router = useRouter();
-  const [length, setLength] = useState("any");
+  const [length, setLength] = useState(TIME_OPTIONS[0].value);
   const [vibe, setVibe] = useState<Vibe>("tide");
   const [level, setLevel] = useState<Level>("All levels");
   const [voiceId, setVoiceId] = useState(INSTRUCTORS[0].voiceId);
@@ -40,7 +40,7 @@ export default function HomeScreen({ sessions }: { sessions: SessionData[] }) {
       </Button>
 
       <div className={styles.controls}>
-        {/* <TimeFilter value={length} onChange={setLength} /> */}
+        <TimeFilter value={length} onChange={setLength} />
         <VibeSelect value={vibe} onChange={setVibe} />
         <div className={styles.selects}>
           <Select label="Level" value={level} options={LEVEL_OPTIONS} onChange={(value) => setLevel(value as Level)} />
@@ -49,7 +49,7 @@ export default function HomeScreen({ sessions }: { sessions: SessionData[] }) {
         <PromptField
           onSubmit={(prompt) =>
             // "Any length" uses the default; the prompt's own length still wins during generation.
-            setRequest({ prompt, minutes: length === "any" ? DEFAULT_MINUTES : Number(length), vibe, level, voiceId })
+            setRequest({ prompt, minutes: Number(length), vibe, level, voiceId })
           }
         />
       </div>
