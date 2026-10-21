@@ -1,7 +1,7 @@
 import { z } from "zod";
 import ClassScreen from "@/components/ClassScreen/ClassScreen";
 import { requireUser } from "@/lib/auth/access";
-import { Session } from "@/lib/data";
+import { Session, UserSession } from "@/lib/data";
 import type { SessionManifest } from "@/lib/generation/storage";
 import styles from "./page.module.css";
 
@@ -24,10 +24,13 @@ async function loadManifest(url: string): Promise<SessionManifest | null> {
 }
 
 export default async function ClassPage({ params }: PageProps<"/class/[id]">) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   // Checked first: Postgres rejects a malformed uuid with an error rather than no rows.
-  const session = z.uuid().safeParse(id).success ? await Session.findById(id) : null;
+  const valid = z.uuid().safeParse(id).success;
+  const [session, progress] = valid
+    ? await Promise.all([Session.findById(id), UserSession.find(user.id, id)])
+    : [null, null];
   const manifestUrl = session && blobUrl(session.manifestUrl);
   const manifest = manifestUrl ? await loadManifest(manifestUrl) : null;
 
@@ -40,5 +43,14 @@ export default async function ClassPage({ params }: PageProps<"/class/[id]">) {
     );
   }
 
-  return <ClassScreen manifest={manifest} musicUrl={blobUrl(session.audioUrl)} vibe={session.vibe} />;
+  const resumeFrom = progress?.status === "started" && progress.position > 0 ? progress.position : undefined;
+  return (
+    <ClassScreen
+      sessionId={session.id}
+      manifest={manifest}
+      resumeFrom={resumeFrom}
+      musicUrl={blobUrl(session.audioUrl)}
+      vibe={session.vibe}
+    />
+  );
 }

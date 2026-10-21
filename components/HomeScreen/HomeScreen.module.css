@@ -23,10 +23,12 @@
 }
 
 /* Opposite corner from the wordmark; vertically centred on it. */
-.signOut {
+.account {
   position: absolute;
   top: calc(var(--space-6) - 10px);
   left: var(--space-4);
+  display: flex;
+  gap: var(--space-2);
 }
 
 @media (min-width: 720px) {
@@ -34,7 +36,7 @@
     left: var(--space-8);
   }
 
-  .signOut {
+  .account {
     left: auto;
     right: var(--space-8);
   }

@@ -283,13 +283,14 @@ class SessionAudioEngine {
   }
 }
 
-export function useSessionAudio({ voiceUrl, musicUrl }: { voiceUrl: string; musicUrl?: string }) {
+/** `startAt` is where the first start begins, e.g. a saved position the user is resuming from. */
+export function useSessionAudio({ voiceUrl, musicUrl, startAt = 0 }: { voiceUrl: string; musicUrl?: string; startAt?: number }) {
   const [status, setStatus] = useState<AudioStatus>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const engine = useRef<SessionAudioEngine | null>(null);
-  const resumeAt = useRef(0);
+  const resumeAt = useRef(startAt);
 
   const stop = useCallback(() => {
     engine.current?.destroy();
@@ -298,9 +299,9 @@ export function useSessionAudio({ voiceUrl, musicUrl }: { voiceUrl: string; musi
 
   useEffect(() => stop, [stop]);
 
-  const start = useCallback(async () => {
-    // After a failure, pick up where the voice stopped instead of starting over.
-    const from = engine.current?.position ?? resumeAt.current;
+  /** Starts at `at` if given; otherwise, after a failure, picks up where the voice stopped. */
+  const start = useCallback(async (at?: number) => {
+    const from = at ?? engine.current?.position ?? resumeAt.current;
     stop();
     setStatus("loading");
     setError(null);

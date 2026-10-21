@@ -34,29 +34,6 @@
   overflow: hidden;
 }
 
-.arches {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.arches circle {
-  fill: currentColor;
-}
-
-.a1 {
-  opacity: 0.12;
-}
-
-.a2 {
-  opacity: 0.18;
-}
-
-.a3 {
-  opacity: 0.5;
-}
-
 .tag {
   position: absolute;
   left: var(--space-3);

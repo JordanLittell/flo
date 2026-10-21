@@ -4,24 +4,33 @@ import { useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { classStateAt, holdsFrom } from "@/lib/audio/timeline";
 import { useSessionAudio } from "@/lib/audio/useSessionAudio";
+import { useSessionProgress } from "@/lib/audio/useSessionProgress";
 import type { SessionManifest } from "@/lib/generation/storage";
 import Button from "../Button/Button";
-import SessionPlayer from "../SessionPlayer/SessionPlayer";
+import SessionPlayer, { formatClock } from "../SessionPlayer/SessionPlayer";
 import type { Vibe } from "../vibes";
 import styles from "./ClassScreen.module.css";
 
 export interface ClassScreenProps {
+  sessionId: string;
   manifest: SessionManifest;
+  /** Seconds into the class where the user stopped last time; offers Resume instead of Start. */
+  resumeFrom?: number;
   /** Overrides for testing a voice track against a separately generated loop. */
   musicUrl?: string;
   vibe?: Vibe;
 }
 
-export default function ClassScreen({ manifest, musicUrl, vibe }: ClassScreenProps) {
+export default function ClassScreen({ sessionId, manifest, resumeFrom, musicUrl, vibe }: ClassScreenProps) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const field = vibe ?? manifest.vibe ?? "tide";
-  const audio = useSessionAudio({ voiceUrl: manifest.audioUrl, musicUrl: musicUrl ?? manifest.musicUrl });
+  const audio = useSessionAudio({
+    voiceUrl: manifest.audioUrl,
+    musicUrl: musicUrl ?? manifest.musicUrl,
+    startAt: resumeFrom,
+  });
+  const progress = useSessionProgress({ sessionId, status: audio.status, elapsed: audio.elapsed, startAt: resumeFrom });
   const { transcript, timeline, duration } = manifest;
 
   const holds = useMemo(() => holdsFrom(timeline, duration), [timeline, duration]);
@@ -35,8 +44,32 @@ export default function ClassScreen({ manifest, musicUrl, vibe }: ClassScreenPro
   }
 
   function endClass() {
+    progress.save();
     audio.stop();
     router.push("/");
+  }
+
+  /** From the beginning: first play, replay or start over. */
+  function startClass() {
+    void audio.start(0);
+    progress.restart();
+  }
+
+  if (audio.status === "idle" && resumeFrom) {
+    return (
+      <main className={styles.field} data-vibe={field}>
+        <div className={styles.center}>
+          <h1 className={styles.title}>{transcript.title}</h1>
+          <p className={styles.meta}>{meta}</p>
+          <Button variant="on-vibe" size="lg" icon="play" onClick={() => void audio.start()}>
+            Resume from {formatClock(resumeFrom)}
+          </Button>
+          <Button variant="on-vibe" onClick={startClass}>
+            Start over
+          </Button>
+        </div>
+      </main>
+    );
   }
 
   if (audio.status === "idle" || audio.status === "loading" || audio.status === "error") {
@@ -50,7 +83,13 @@ export default function ClassScreen({ manifest, musicUrl, vibe }: ClassScreenPro
               {audio.error ?? "Couldn't load the audio."} {audio.elapsed > 0 ? "Try again to pick up where you left off." : ""}
             </p>
           ) : null}
-          <Button variant="on-vibe" size="lg" icon="play" onClick={audio.start} disabled={audio.status === "loading"}>
+          <Button
+            variant="on-vibe"
+            size="lg"
+            icon="play"
+            onClick={audio.status === "error" ? () => void audio.start() : startClass}
+            disabled={audio.status === "loading"}
+          >
             {audio.status === "error" ? "Try again" : audio.status === "loading" ? "Starting…" : "Start class"}
           </Button>
         </div>
@@ -93,7 +132,7 @@ export default function ClassScreen({ manifest, musicUrl, vibe }: ClassScreenPro
         <h2 id="exit-title" className={styles.dialogTitle}>
           End class?
         </h2>
-        <p className={styles.dialogBody}>Your progress in this class won&apos;t be saved.</p>
+        <p className={styles.dialogBody}>You can pick up where you left off from Sessions.</p>
         <div className={styles.dialogActions}>
           <Button
             onClick={() => {

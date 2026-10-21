@@ -1,3 +1,4 @@
+import Arches from "../Arches/Arches";
 import { VIBES, type Vibe } from "../vibes";
 import styles from "./FlowCard.module.css";
 
@@ -11,18 +12,6 @@ export interface FlowCardProps {
   tag?: string;
   onClick?: () => void;
   className?: string;
-}
-
-/** Rising half-rounds: the breath / sunrise motif shared by flow art and the loader. */
-function Arches() {
-  return (
-    <svg className={styles.arches} viewBox="0 0 200 120" preserveAspectRatio="xMidYMax slice" aria-hidden>
-      <circle cx={150} cy={132} r={74} className={styles.a1} />
-      <circle cx={150} cy={132} r={50} className={styles.a2} />
-      <circle cx={150} cy={132} r={26} className={styles.a3} />
-      <circle cx={44} cy={34} r={9} className={styles.a3} />
-    </svg>
-  );
 }
 
 /** A flow in Popular flows or Community flows; the whole card is a button. */

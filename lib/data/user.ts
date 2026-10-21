@@ -62,6 +62,7 @@ export class User implements UserData {
     const [row] = await db<UserRow[]>`select * from users where email = ${normalize(email)}`;
     if (!row?.password_hash) {
       // Hash anyway so unknown emails take as long as wrong passwords.
+      // otherwise hackers know what emails are registered as they will take longer to 403
       await hashPassword(password);
       return null;
     }

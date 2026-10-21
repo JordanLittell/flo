@@ -35,9 +35,12 @@ export default function HomeScreen({ sessions }: { sessions: SessionData[] }) {
   return (
     <main className={styles.page}>
       <h1 className={styles.wordmark}>Flo</h1>
-      <Button className={styles.signOut} onClick={() => signOut({ callbackUrl: "/sign-in" })}>
-        Sign out
-      </Button>
+      <nav className={styles.account} aria-label="Account">
+        <Button icon="clock" onClick={() => router.push("/sessions")}>
+          Sessions
+        </Button>
+        <Button onClick={() => signOut({ callbackUrl: "/sign-in" })}>Sign out</Button>
+      </nav>
 
       <div className={styles.controls}>
         <TimeFilter value={length} onChange={setLength} />
